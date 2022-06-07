@@ -1,0 +1,300 @@
+---
+title: "01_question1"
+author: "44"
+date: "2022-06-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Q1
+
+A trial was performed to assess the impact of an intervention on the
+number of times a sedentary individual engages in 10 minutes of
+sustained moderate-to-vigorous physically active over a week.
+
+The study recruited participants in matched pairs (matching on age),
+assigning the intervention to one individual within each age pair (n
+total pairs).
+
+Denote each pair using the subscript $i$ and let the number of active
+bouts for the person in the $i$th pair be denoted as $Y_{i1}$, $Y_{i2}$,
+with $Y_{i1}$ corresponding to individual who received the intervention.
+
+Let $X_i$ be the age for individuals in the $i$th pair.
+
+It is hypothesized that
+
+$$
+Y_{i1}|X_i \sim Poisson(\gamma \beta(X_i))\\
+Y_{i2}|X_i \sim Poisson(\beta (X_i))
+$$
+
+where $\beta(·)$ is an unspecified function of $X_i$ (age).
+
+The investigators of the current study are uninterested in $\beta(·)$.
+
+Assume that the distribution of age in the population follows some
+distribution $f_X(x)$.
+
+If the number of pairs ($n$) observed is large and $X$ is observed
+densely relative to the shape of $\beta(·)$ then $\gamma, \beta$ may be
+estimable using the likelihood of the data.
+
+However, if n is small or $X$ is sparsely observed, estimating both
+$\gamma$ and $\beta$ may not be possible. This question involves
+deriving a conditional likelihood where you condition out the nuisance
+parameter(s) $\beta(·)$ so that $\gamma$ is estimable in such scenarios.
+
+You will implement a short simulation study and apply your method to
+data from the study referenced above.
+
+## (a) 
+
+In the first part of this problem,
+we will condition out nuisance parameters ($\beta$) to obtain a
+likelihood for $\gamma$ which depends only on the observed data.
+
+### i. 
+
+What is the likelihood of
+$[X_i, Y_{i1}, Y_{i2}]^T | \gamma, \beta(·)$? Your answer will involve
+the marginal distribution of $X$, $f_X(x)$.
+
+
+$$
+\begin{split}
+L(\gamma, \beta(·) ; \pmb X, \pmb Y_{1}, \pmb Y_{2}) & =
+\prod_{i=1}^n L(\gamma, \beta(·) ; X_i, Y_{i1}, Y_{i2}) \\
+& = \prod_{i=1}^n f_{Y_1, Y_2}(y_{i1}, y_{i2} | x_i; \gamma, \beta(·)) \times f_{X}(x_i ; \gamma, \beta(.)) \\
+& = \prod_{i=1}^n f_{Y_{1}}(y_{i1}|x_i; \gamma, \beta(.)) \times f_{Y_{2}}(y_{2}| x_i; \beta(.)) \times f_X(x_i) \\
+& = \prod_{i=1}^n \frac {(\gamma \beta(x_i))^{y_{i1}} e^{-\gamma \beta(x_i)}} {y_{i1}!} 
+\frac {( \beta(x_i))^{y_{i2}} e^{-\beta(x_i)}} {y_{i2}!} f_X(x_i)\\
+& = \prod_{i=1}^n \frac {\gamma^{y_{i1}}\beta (x_i)^{y_{i1} + y_{i2}} e^{-(\gamma \beta(x_i) + \beta(x_i))}}
+{y_{i1}! y_{i2}!} f_X(x_i)
+\end{split}
+$$
+
+### ii. 
+
+What is the likelihood of $Y_{i1} + Y_{i2}|Xi, \theta$? Identify the corresponding distribution.
+
+The summation of two Poisson distribution is also a Poisson distribution. 
+$Y_{i1} + Y_{i2} |Xi \sim Poisson(\gamma \beta(X_i) + \beta(X_i))$
+
+
+$$
+\begin{split}
+& \begin{cases}
+U = Y_1 + Y_{2} \\
+V = Y_{1}\\
+\end{cases}
+& Y_{1}, Y_{2} \geq 0; 0 \leq V \leq U\\
+& \begin{cases}
+Y_1 = V\\
+Y_2 = {U - V}
+\end{cases} \\
+& J = 
+\begin{bmatrix}
+\frac {\partial u} {\partial y_1} & \frac {\partial u} {\partial y_2} \\
+\frac {\partial v} {\partial y_1} & \frac {\partial v} {\partial y_2}
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 1 \\ 1 & 0
+\end{bmatrix}= -1
+\end{split}
+$$
+
+$$
+\begin{split}
+f_{U, V}(u, v|x; \gamma, \beta(.)) & = 
+f_{Y_1, Y_2}(y_1 + y_2, y_1|x; \gamma, \beta(.)) \times |J| \\
+& = \frac {\gamma^{v}\beta (x)^{u} e^{-(\gamma \beta(x) + \beta(x))}}
+{v! (u - v)!} \\
+for:\ 0 \leq V \leq U_{i}\\
+f_{U}(u | x; \gamma, \beta(.)) & =
+\int f_{U, V}(u, v|x; \gamma, \beta(.)) dv \\
+& = \int_{0}^u \frac {\gamma^{v}\beta (x_i)^{u_i} e^{-(\gamma \beta(x_i) + \beta(x_i))}}
+{v_i! (u_i - v_i)!} dv \\
+& = \frac {(\gamma \beta(x_i) + \beta(x_i))^{u_{i}} e^{-\gamma \beta(x_i) - \beta(x_i)}} {u_{i}!} \\
+U_i | X_i  \equiv  Y_{i1} + Y_{i2} |X_i & \sim Poisson(\gamma \beta(X_i) + \beta(X_i))
+\end{split}
+$$
+
+
+### iii. 
+
+What is the likelihood of $Y_{i1} | Y_{i1} + Y_{i2}, X_{i}, \theta$? Identify the corresponding distribution.
+
+$$
+\begin{split}
+L(\theta; v | u, x) & = f_{V|U}(v | u, x; \theta)  = \frac {f_{U, V} (v , u| x; \theta)} {f_{U}(u | x; \theta)} \\
+& = \frac {\gamma^{v}\beta (x_i)^{u_i} e^{-(\gamma \beta(x_i) + \beta(x_i))}}
+{v_i! (u_i - v_i)!} \times \frac {u_{i}!} {(\gamma \beta(x_i) + \beta(x_i))^{u_{i}} e^{-\gamma \beta(x_i) - \beta(x_i)}} \\
+& = \frac  {u_i!} {v_i! (u_i - v_i)!} \frac {\gamma^{v_i} \beta^{u_i}} {(\gamma\beta + \beta)^{u_i}} \\
+& = \frac  {u_i!} {v_i! (u_i - v_i)!} \bigg(\frac {\gamma\beta} {\gamma \beta + \beta} \bigg)^{v_i} \bigg(\frac {\beta} {\gamma\beta + \beta}\bigg)^{u_i - v_i} \\
+& = \frac  {u_i!} {v_i! (u_i - v_i)!} \bigg(1 - \frac {1} {\gamma + 1} \bigg)^{v_i} \bigg(\frac {1} {\gamma + 1}\bigg)^{u_i - v_i} 
+\end{split}
+$$
+
+
+The distribution of $(V_{i} | U_i, X_{i}; \theta) \equiv (Y_{i1} | Y_{i1} + Y_{i2}, X_{i}; \theta)$ is $(V_{i} | U_i, X_{i}; \theta) \sim Binomial(U_i, \frac {1} {\gamma + 1})$, with sample size $U_i$ and $p = \frac {1} {\gamma + 1}$
+
+The distribution for the parameter $\theta$ is $\frac {1} {1 + \gamma} \sim Beta(u_i - v_i + 1, v_i + 1)$
+
+### iv. 
+
+What is the maximum likelihood estimator of $\gamma$ obtained from the conditional likelihood you derived in iii?
+
+If $\hat \theta$ is the MLE of $\theta$, then $g(\hat \theta)$ is the MLE of $g(\theta)$; $\gamma = g(\theta) = \theta^{-1} - 1$
+
+
+$$
+\begin{split}
+L(\gamma; \pmb v | \pmb u, \pmb x) & = \prod_{i=1}^n L(\theta; v_i | u_i, x_i)\\
+\log L(\gamma; \pmb v | \pmb u, \pmb x) & = \sum_{i=1}^n \log L(\theta; v_i | u_i, x_i)\\
+& = \sum_{i=1} ^n \log\bigg(\frac  {u_i!} {v_i! (u_i - v_i)!}\bigg) +
+\log \bigg(1 - \frac {1} {\gamma + 1} \bigg) \sum_{i=1}^n v_i  + 
+\log \bigg(\frac {1} {\gamma + 1}\bigg)\sum_{i=1}^n ({u_i - v_i} )\\
+\frac {\partial \log L(\gamma; \pmb v | \pmb u, \pmb x)} {\partial \gamma} & =
+\frac {1} {\gamma (\gamma+1)} \sum_{i=1}^n v_i  - \frac {1} {(\gamma + 1)}\sum_{i=1}^n ({u_i - v_i} ) \stackrel {set}{=} 0\\
+& \hat \gamma  \neq -1 \ or \ 0 \ \ \\
+\hat \gamma & = \frac {\sum_{i=1}^n v_i} {\sum_{i=1}^n (u_i - v_i)} = \frac {\sum_{i=1}^n y_{i1}} {\sum_{i=1}^n y_{i2}} = \frac {\bar Y_1} {\bar Y_2}\\
+\frac {\partial^2 \log L(\gamma; \pmb v | \pmb u, \pmb x)} {\partial \gamma^2} & =
+- \frac {2 \gamma + 1} {\gamma^2 (\gamma+1)^2} \sum_{i=1}^n v_i  + \frac {1} {(\gamma + 1)^2}\sum_{i=1}^n ({u_i - v_i} ) \\
+given \ \hat \gamma, \ & \frac {\partial^2 \log L(\gamma; \pmb v | \pmb u, \pmb x)} {\partial \gamma^2} \leq 0;\ \hat \gamma \ is \ MLE
+\end{split}
+$$
+
+
+## (b) 
+
+Propose a method for constructing an asymptotic 95% confidence interval for $\gamma$ based on your result from (a) iv using maximum likelihood theory (you may use the observed information here).
+
+The MLE $\hat \gamma$ is asymptotically normal under regularity conditions. 
+
+$$
+\begin{split}
+& \sqrt n (\hat \gamma - \gamma) \stackrel {L} {\rightarrow} Normal (0, I(\gamma)^{-1})\\
+& Var[\hat \gamma] = I[\gamma] ^ {-1} = - \bigg(\frac {1} {n} \frac {\partial^2}  {\partial \gamma^2} \log L(\gamma; \pmb v | \pmb u, \pmb x)\bigg)^{-1}= \frac{(\sum_{i=1}^n u_i)^3 (\sum _{i=1}^n u_i-v_i)}{n (\sum_{i=1}^n v_i)^3} = \frac {(\bar Y_1 + \bar Y_2)^3 (\bar Y_2)} {\bar Y_1^3}\\
+\end{split}
+$$
+
+Hence, an asymptotic 95% confidence interval for $\gamma$ can be calculated using $\hat \gamma \pm 1.96 se[\hat \gamma]$
+
+
+
+## (c) 
+
+A statistician colleague of yours suggests constructing of a confidence interval 
+using simulation. Specifically, your colleague proposes the following procedure:
+
+Fix $\alpha$, the type-I error rate. 
+
+
+- Step 1 Choose candidate interval endpoints $\gamma^∗ = [\gamma_1^∗, \gamma_2^∗, ... , \gamma_S^∗]^{\top}$ which is dense over a range of plausible
+endpoints for the confidence interval. 
+
+- Step 2 For each $\gamma_s^∗ \in \gamma^∗$ 
+  - Step 2a Simulate $y^s_{i1} | y_{i1} + y_{i2}$, $\gamma_s^∗$ using the distribution you derived in (a)iii.
+  - Step 2b Calculate $\gamma_s^∗$ as the MLE you derived in (a)iv. 
+  - Step 2c Repeat (1)-(2) many times (e.g. 2000).
+  - Step 2d Let $I_s = 1 \Big(\hat \gamma \in \big[\hat F_{\gamma_s}^{-1} (\alpha/2), \hat F_{\gamma_s}^{-1} (1- \alpha/2)\big]\Big)$, where $\hat F_{\gamma_s}^{-1} (\alpha/2)$) and $\hat F_{\gamma_s}^{-1} (1- \alpha/2)$ are the $\alpha/2$ and $1 − \alpha/2$ percentiles
+of $\gamma_s^∗$ obtained from Steps 2a-2c, respectively. 
+
+- Step 3 Define a $1 − \alpha$% CI for $\gamma$ as $\big[{min}_{\{s: I_s =1\}} (\gamma_s^∗), {max}_{\{s:I_s =1\}} (\gamma_s^∗) \big] $ Argue that your colleague's algorithm is a valid approach for constructing a 95% confidence interval. 
+
+Write a function which implements this algorithm for arbitrary: 
+- Type-I error $\alpha$ 
+- Input vectors $\pmb y_1, \pmb y_2$
+- Candidate interval endpoints $\gamma^∗$ 
+- Number of simulated datasets created in step 2c
+
+$(V_{i} | U_i, X_{i}; \theta) \sim Binomial(U_i, \frac {1} {\gamma + 1})$
+
+$\hat \gamma = \frac {\sum_{i=1}^n y_{i1}} {\sum_{i=1}^n y_{i2}} = \frac {\bar Y_1} {\bar Y_2}$
+
+```{r eval=FALSE, include=TRUE}
+library(tidyverse)
+
+gety <- function(seed, 
+                 n = 15) {
+  set.seed(seed)
+  X <- runif(n, min = 0, max = 1)
+  beta <- 2 * exp(-2 * X) 
+  
+  y1 <- map(gamma * beta, ~rpois(1, .)) %>% unlist()
+  y2 <- map(beta, ~rpois(1, .)) %>% unlist()
+  
+  simy <- cbind(y1 = y1, y2 = y2)
+  return(simy)
+}
+
+sim_num <- 2000
+y_ss15 <- map(1:sim_num, ~gety(seed = ., n = 15))
+y_ss100 <- map(1:sim_num ~gety(seed = ., n = 100))
+
+save(y_ss15, y_ss100, file = "bios_qexam_data_1.Rdata")
+
+```
+
+
+
+```{r}
+load("bios_qexam_data_1.Rdata")
+get_gamma <- function(y1,
+                      y2,
+                      alpha,
+                      gamma_min = 0,
+                      gamma_max = 5.5,
+                      gamma_step = 0.01,
+                      N = 2000) {
+  ## sum of y1 y2
+  y12 <- y1 + y2
+  alpha = 0.5
+  gamma_min = 0
+  gamma_max = 5.5
+  gamma_step = 0.01
+  N = 2000
+  gamma_int <- seq(gamma_min, gamma_max, by = gamma_step)
+  ## emptry matrix to store the values
+  gamma_mle <- matrix(NA, nrow = N, ncol = length(gamma_int))
+
+  for (j in seq_along(1:N)) {
+    for (i in seq_along(1:length(gamma_int))) {
+      phat <- 1 / (1 + gamma_int[i])
+      ya3 <- map(y12, ~rbinom(n = 1, size = ., 
+                              prob = phat)) %>% unlist()
+      gamma_mle[j, i] <- sum(ya3) / sum(y12 - ya3) 
+    }
+  }
+  gamma_mle
+}
+get_gamma(y1 = y_ss15[[2]][, 1],
+          y2 = y_ss15[[2]][, 2]) %>% View()
+
+```
+
+
+
+## (d) 
+
+Implement a fully reproducible simulation study which assesses the performance of the confidence intervals obtained in (b) and (c). Specifically, implement a simulation study as follows:
+
+- $X ∼ Unif(0, 1)$,
+- $\gamma = 2.2$,  
+- $\beta(x) = 2e^{−2x}$,
+- $n=15 \& n=100$, 
+- $\gamma^∗$ is an equally spaced grid on $[0,5.5]$ with interval length of $0.01$ 
+- Simulate $2000$ datasets in Step 2c of the algorithm from (c)
+
+Estimate 95% confidence intervals using the approaches you derived in both (b) and (c) in 5000 simulated datasets and evaluate power for testing the null hypothesis $H_0 : \gamma = 1$. Compare approaches on coverage probability and
+power. Summarize your results in 3-4 sentences as if for a statistical journal. Support your claims using 1-2 tables or figures. Provide well commented code which reproduces your simulation study and recreates your tables/figures.
+
+
+
+
+## (e) 
+
+Apply your methods to the dataset "MVPA intervention.csv", a data matrix which con- tains two columns, "Y1" and "Y2", corresponding to the number of 10 minute bouts of moderate-to-vigorous physical activity in matched pairs. Estimate α and construct 95% confidence intervals using both of the approaches you derived in (b) and (c). Write a brief, non-technical, summary of both methods as if communicating to a non-statistician, rec- ommend and justify one approach, and conclude with an interpretation of the estimated coefficient and confidence interval.

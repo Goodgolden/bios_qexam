@@ -1,0 +1,228 @@
+---
+title: "03_question3"
+author: '44'
+date: "2022-06-02"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Q3
+
+Assume that $(Y_i, X_i)$, $i = 1, ... , n$ are independent observations, where $Y_i$ is binary and $X_i$ is a $d$−dimensional vector of covariates.
+
+We wish to fit a logistic regression model of $Y$ to $X$, i.e., $P(Y_i = 1) = \frac {exp(X_i \beta)} {(1 + exp(X_i \beta))}$ where $\beta$ are the regression coefficients.
+
+Note that we are fitting a model without an intercept
+
+### (a). Determine a generative model based on the multivariate normal distribution 
+
+for $X|Y$ with $d = 3$ and $n = 102$ that leads to estimates of $\beta$ that are either negative infinity or infinity. We will refer to this as a nonconvergence situation.
+
+List out the following values: 
+the mean vector and variance-covariance matrix of $X|Y$ and $p$, the probability of $Y = 1$.
+
+
+$$
+Y_i | X_i \sim Bernoulli(p_i)\\
+logit(E[Y_i]) = logit(p_i) = X_i \beta\\
+p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}
+$$
+
+$$
+\begin{split}
+f(x, y| \beta) & = L(\beta; X, Y) \\
+& =  \prod_{i = 1}^n  \Big(p_i(x_i)\Big)^{y_i}\Big(1- p_i(x_i)\Big)^{1 - y_i}\\
+& =  \prod_{i = 1}^n  \Bigg(\frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}\Bigg)^{y_i}\Bigg(1- \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}\Bigg)^{1 - y_i}\\
+log L(\beta; X, Y)  & = \sum_{i=1}^nlog\Bigg(1- \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}\Bigg) + \sum_{i=1}^n y_i X_i\beta\\
+\frac {\nabla log L(\beta; X, Y)} {\nabla \beta} & = \sum_{i=1}^n\Bigg(y_i - \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}\Bigg) X_i \stackrel {set} {=} 0\\
+\forall i, & \ y_i = \frac {\exp (X_i \hat \beta) } {1 + \exp (X_i \hat \beta)} 
+\end{split}
+$$
+
+In a general situation, we will not be able to solve exactly to get a closed form solution, because binary outcome $y_i$ can not be estimate by $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$. For most of the time, numerical methods must applied. However, in some rare cases ($\beta$ is noncovergence, as $-\infty$ or $\infty$), $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$ can take the exact value of $y_i$ as either $0$ or $1$. This means the value of $Y$ can separate a given $X$ completely. Then we will have a situation of complete seperation. In such case, the more extreme the value of $\beta$ takes, the larger the likelihood is. Hence the maximum likelihood estimate on the parameter $\beta$ does not exist, but take the value of $-\infty$ or $\infty$.
+
+$$
+E[X] = E[X|y=1] \times p + E[X|y=0] \times (1 - p)\\
+E[X^2] = E[X^2|y=1] \times p + E[X^2|y=0] \times (1 - p)\\
+Var[X] = E[X]^2 - E[X^2]\\
+$$
+
+the mean vector and variance-covariance matrix of $X|Y$ and $p$, the probability of $Y = 1$.
+
+I will set $x1$ is correlated with $y$ with mean $E[x_1] = 0$, and make sure $\pmb X \pmb \beta = 0$. 
+
+$$
+\begin{split}
+& p = E[Y] = 0.5\\
+& logit(p) = \pmb X \pmb \beta = 0\\
+& \pmb \beta = (1, 0.5, -0.25)\\
+& \pmb X \sim MVN(\pmb \mu, \pmb \Sigma)\\
+& \pmb \mu = \begin{pmatrix}
+  \mu_1 = 0 \\ \mu_2 = 1 \\ \mu_3 = 2
+\end{pmatrix}, \
+\pmb \Sigma = \begin{pmatrix}
+  \sigma_1^2 = 0.25 & 0 & 0\\
+  0 & \sigma_2^2  = 0.25 & 0\\
+  0 & 0 & \sigma_3^2 = 0.25
+\end{pmatrix}
+\end{split}
+$$
+
+
+
+### (b). Give a 2-3 sentence description which describes when we can expect nonconvergence.
+The outcome variable separates certain predictor variables completely and almost perfectly. 
+
+There is no pair $(Y, X)$ with give $Y$ value and $X$ belongs to certain region, such that the frequency is zero in the sample, for example $P(Y = 1| X_{sub} \in (-\infty, 0)) = 0$ and $P(Y = 1| X_{sub} \in (0, \infty)) = 1$. 
+
+In such situation, maximum likelihood estimate on the parameter $\beta$ does not exist.
+
+### (c). Give a 2-3 sentence description which describes how nonconvergence relates to multicollinearity.
+
+In both situations, the model does not have reasonable estimates for predictor variables, but remains valid prediction for the outcome.
+
+The noncovergence situation is a special type of collinearity, after link function transformation on $y$, there is a linear relationship with $X_2, X_3$, $logit(P(Y)) = x_2 \beta_2 + x_3 \beta_3$. Meanwhile, we know $Y = I(X_1\in S)$ for separation case. Hence $logit(P(X_1 \in S)) = x_2 \beta_2 + x_3 \beta_3$ is collinearized with $X$ belongs to certain set. 
+
+Although in the noncovergence cases, the outcome $y$ is not collinear with $X_{sub}$, a subset of $X$, but a binary variable of $I(X_{sub} \in S)$.
+
+### (d). Modify the model in (a) to achieve convergence. 
+
+Based on the modified model, fit a logistic regression of $y$ on $X$ using 100000 observations from $y = 1$ and 100000 observations from $y = 0$. 
+
+Report the estimated regression coefficients and standard errors.
+
+Assuming $E[Y] = \hat p = 0.5$, such that $logit(\hat p) = X\beta = 0$, we can discard the predictor $x_1$, which is correlated with outcomes $Y$. If we only use the other two predictors, the model should converge.
+
+```{r "sim_method1", eval=FALSE, include=TRUE}
+set.seed(55555)
+
+n <- 100000
+N <- n * 10
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+
+x2 <- c(rnorm(2 * N, mean = 1, sd = 0.5))
+x3 <- c(rnorm(2 * N, mean = 2, sd = 0.5))
+
+beta23 <- as.matrix(c(beta2, beta3))
+X23 <- as.matrix(cbind(x2, x3))
+# str(beta23); dim(beta23)
+# str(X23); dim(X23)
+
+logit_p <- X23 %*% beta23
+mean(logit_p) ## [1] 4.258361e-05
+p_hat <- 1 / (1 + exp(-logit_p))
+mean(p_hat) ## [1] 0.500011
+
+y <- map(p_hat, 
+         ~rbinom(n = 1, size = 1, prob = .)) %>% 
+  unlist()
+
+data_3_0 <- data.frame(y, x2, x3) %>%
+  ## simulate x1 which can be separate by outcome y completely
+  mutate(x1 = case_when(y == 1 ~ abs(rnorm(1, mean = 0, sd = 0.5)),
+                        y == 0 ~ -abs(rnorm(1, mean = 0, sd = 0.5))))
+
+```
+
+```{r "sim_method2", eval=FALSE, include=TRUE}
+n <- 100000
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+y <- c(rep(0, n), rep(1, n))
+x1 <- c(abs(rnorm(n, mean = 1, sd = 0.5)), 
+        -abs(rnorm(n, mean = 1, sd = 0.5)))
+x2 <- c(rnorm(2 * n, mean = 1, sd = 0.5))
+x3 <- c(rnorm(2 * n, mean = 2, sd = 0.5))
+
+data_3_1 <- data.frame(y, x1, x2, x3)
+# mean(data_3_1$x1)
+# mean(data_3_1$y)
+
+# save(data_3_0, data_3_1, file = "bios_qexam_data_3_0.Rdata")
+```
+
+
+```{r "simulation", eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+n <- 100000
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+
+glm_con <- matrix(NA, nrow = n, ncol = 3)
+glm_unc <- matrix(NA, nrow = n, ncol = 2)
+
+for (i in seq_along(1:1000)) {
+  x1 <- c(abs(rnorm(n, mean = 1, sd = 0.5)), 
+          -abs(rnorm(n, mean = 1, sd = 0.5)))
+  x2 <- c(rnorm(2 * n, mean = 1, sd = 0.5))
+  x3 <- c(rnorm(2 * n, mean = 2, sd = 0.5))
+  
+  data_sim <- data.frame(y, x1, x2, x3)
+  
+  fit_3_0 <- glm(y ~ 0 + x1 + x2 + x3,
+               family = binomial("logit"),
+               data = data_sim)
+  
+  fit_3_1 <- glm(y ~ 0 + x2 + x3,
+               family = binomial("logit"),
+               data = data_sim)
+  
+  glm_con[i, ] <- fit_3_0$coefficients
+  glm_unc[i, ] <- fit_3_1$coefficients
+}
+
+save(data_3_0, data_3_1, glm_con, glm_unc, 
+     file = "bios_qexam_data_3_0.Rdata")
+```
+
+
+```{r}
+load("bios_qexam_data_3_0.Rdata")
+glm_con
+glm_unc
+```
+
+
+(e). Perform a simulation study using the generative model in (a). 
+comparing different penalization schemes. 
+As in (a), we will assume a sample size of 103. 
+
+Please use the following methods: 
+(1) LASSO regression (using the glmnet package in R); 
+(2) Firth correction (using the logistf package in R).
+
+For both methods, you will actually fit the model with the intercept.
+Thus, we are fitting a misspecified model, and the goal is to see how the corrections fare in terms of bias. 
+
+For the simulation study, specify the following: 
+- Tuning parameters used for the two penalized regressions; 
+- The number of simulated datasets being used. 
+- Report on the mean bias for the parameters using each of the methods. 
+
+(NB: For the LASSO, you will get a warning message of the form 
+"In lognet(xd, is.sparse, ix, jx, y, weights, offset, alpha, ... : one multinomial or binomial class has fewer than 8 observations; dangerous ground"; 
+you can ignore that. 
+
+For the Firth correction, you will get warning messages of the form "fitted probabilities numerically 0 or 1 occurred for variable V2"; 
+you can disregard those. 
+
+In the event that any of your simulation values do not converge, 
+you may remove those from the simulation study.
+
+Finally, for the Firth correction, 
+you will want to set the maximum number of iterations to be at least 10000).
+
+
+```{r}
+
+```
+
+
