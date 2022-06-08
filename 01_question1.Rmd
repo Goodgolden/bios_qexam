@@ -380,7 +380,7 @@ Apply your methods to the dataset "MVPA intervention.csv", a data matrix which c
 Write a brief, non-technical, summary of both methods as if communicating to a non-statistician, recommend and justify one approach, and conclude with an interpretation of the estimated coefficient and confidence interval.
 
 
-```{r eval=TRUE, include=TRUE}
+```{r eval=FALSE, include=TRUE}
 library(tidyverse)
 y <- read_csv("data/MVPA_intervention.csv")
 y1 <- y$Y1
@@ -390,13 +390,12 @@ y2_bar <- mean(y2)
 ## mle 
 (mean <- y1_bar / y2_bar)
 ## sd 
-
+## use observed information
 (gamma <- y1_bar / y2_bar)
 Inof <- ((2 * gamma + 1) / (gamma^2 * (1 + gamma)^2) * sum(y1) - 1 / (gamma + 1)^2 * sum(y2)) / 15
-Inof
 (sd <- (1 / Inof) %>% sqrt()) / sqrt(15); sd
+## use phat
 sd0 <- sqrt((y1_bar + y2_bar) * y1_bar / y2_bar^3) / sqrt(15)
-sd0
 ## 95% CI
 mean - 1.96 * sd0
 mean + 1.96 * sd0 
@@ -405,7 +404,7 @@ get_gamma(y = y, gamma_max = 15)
 ```
 
 
-```{r}
+```{r eval=FALSE, include=TRUE}
 ## use permutation to get the confidence interval 
 y_permu <- map(1:1000, ~sample_n(y, size = 15, replace = TRUE))
 

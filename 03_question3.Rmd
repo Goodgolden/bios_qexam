@@ -32,8 +32,7 @@ $$
 Y_i | X_i \sim Bernoulli(p_i)\\
 logit(E[Y_i]) = logit(p_i) = X_i \beta\\
 p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}
-\end{split
-}
+\end{split}
 $$
 
 $$
