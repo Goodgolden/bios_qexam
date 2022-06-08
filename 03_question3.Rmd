@@ -28,9 +28,12 @@ the mean vector and variance-covariance matrix of $X|Y$ and $p$, the probability
 
 
 $$
+\begin{split}
 Y_i | X_i \sim Bernoulli(p_i)\\
 logit(E[Y_i]) = logit(p_i) = X_i \beta\\
 p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}
+\end{split
+}
 $$
 
 $$
@@ -44,17 +47,13 @@ log L(\beta; X, Y)  & = \sum_{i=1}^nlog\Bigg(1- \frac {\exp (X_i\beta) } {1 + \e
 \end{split}
 $$
 
-In a general situation, we will not be able to solve exactly to get a closed form solution, because binary outcome $y_i$ can not be estimate by $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$. For most of the time, numerical methods must applied. However, in some rare cases ($\beta$ is noncovergence, as $-\infty$ or $\infty$), $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$ can take the exact value of $y_i$ as either $0$ or $1$. This means the value of $Y$ can separate a given $X$ completely. Then we will have a situation of complete seperation. In such case, the more extreme the value of $\beta$ takes, the larger the likelihood is. Hence the maximum likelihood estimate on the parameter $\beta$ does not exist, but take the value of $-\infty$ or $\infty$.
+In a general situation, we will not be able to solve exactly to get a closed form solution, because binary outcome $y_i$ can not be estimate by $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$. For most of the time, numerical methods must applied. However, in some rare cases ($\beta$ is noncovergence, as $-\infty$ or $\infty$), $p_i(X_i) = \frac {\exp (X_i\beta) } {1 + \exp (X_i \beta)}$ can take the exact value of $y_i$ as either $0$ or $1$. This means the value of $Y$ can separate a given $X$ completely. Then we will have a situation of complete separation. In such case, the more extreme the value of $\beta$ takes, the larger the likelihood is. Hence the maximum likelihood estimate on the parameter $\beta$ does not exist, but take the value of $-\infty$ or $\infty$.
 
-$$
-E[X] = E[X|y=1] \times p + E[X|y=0] \times (1 - p)\\
-E[X^2] = E[X^2|y=1] \times p + E[X^2|y=0] \times (1 - p)\\
-Var[X] = E[X]^2 - E[X^2]\\
-$$
 
 the mean vector and variance-covariance matrix of $X|Y$ and $p$, the probability of $Y = 1$.
 
 I will set $x1$ is correlated with $y$ with mean $E[x_1] = 0$, and make sure $\pmb X \pmb \beta = 0$. 
+In such case, we have $logit(p) = \pmb X \pmb \beta = 0$. So we set $\mu_1 = E[X_1] = 0$, and $E[x_2 * \beta_2 + x_3 \times \beta_3] = 0$ to generate $Y_i \sim Bernoulli(0.5)$. Then we set $x_1$ perfectly complete separated by $Y_i$, such that when $P(X_1 > 0 | Y = 1) = 1$.
 
 $$
 \begin{split}
@@ -96,9 +95,10 @@ Based on the modified model, fit a logistic regression of $y$ on $X$ using 10000
 
 Report the estimated regression coefficients and standard errors.
 
-Assuming $E[Y] = \hat p = 0.5$, such that $logit(\hat p) = X\beta = 0$, we can discard the predictor $x_1$, which is correlated with outcomes $Y$. If we only use the other two predictors, the model should converge.
+Assuming $E[Y] = \hat p = 0.5$, such that $logit(\hat p) = X\beta = 0$, we can discard the predictor $x_1$, which is correlated with outcomes $Y$. If we only use the other two predictors $x_2, x_3$, the model should converge.
 
 ```{r "sim_method1", eval=FALSE, include=TRUE}
+library(tidyverse)
 set.seed(55555)
 
 n <- 100000
@@ -107,6 +107,7 @@ beta1 <- 1
 beta2 <- 0.5
 beta3 <- -0.25
 
+x1abs <- c(abs(rnorm(n, mean = 0, sd = 0.5)))
 x2 <- c(rnorm(2 * N, mean = 1, sd = 0.5))
 x3 <- c(rnorm(2 * N, mean = 2, sd = 0.5))
 
@@ -126,9 +127,12 @@ y <- map(p_hat,
 
 data_3_0 <- data.frame(y, x2, x3) %>%
   ## simulate x1 which can be separate by outcome y completely
-  mutate(x1 = case_when(y == 1 ~ abs(rnorm(1, mean = 0, sd = 0.5)),
-                        y == 0 ~ -abs(rnorm(1, mean = 0, sd = 0.5))))
+  mutate(x1 = ifelse(y == 1, x1abs, -x1abs))
+# View(data_3_0)
 
+fit_3_0 <- glm(y ~ 0 + x1 + x2 + x3,
+               family = binomial("logit"),
+               data = data_3_0)
 ```
 
 ```{r "sim_method2", eval=FALSE, include=TRUE}
@@ -137,7 +141,7 @@ beta1 <- 1
 beta2 <- 0.5
 beta3 <- -0.25
 y <- c(rep(0, n), rep(1, n))
-x1 <- c(abs(rnorm(n, mean = 1, sd = 0.5)), 
+x1 <- c(abs(rnorm(n, mean = , sd = 0.5)), 
         -abs(rnorm(n, mean = 1, sd = 0.5)))
 x2 <- c(rnorm(2 * n, mean = 1, sd = 0.5))
 x3 <- c(rnorm(2 * n, mean = 2, sd = 0.5))
@@ -155,7 +159,7 @@ n <- 100000
 beta1 <- 1
 beta2 <- 0.5
 beta3 <- -0.25
-
+y <- c(rep(0, n), rep(1, n))
 glm_con <- matrix(NA, nrow = n, ncol = 3)
 glm_unc <- matrix(NA, nrow = n, ncol = 2)
 
@@ -179,19 +183,31 @@ for (i in seq_along(1:1000)) {
   glm_unc[i, ] <- fit_3_1$coefficients
 }
 
-save(data_3_0, data_3_1, glm_con, glm_unc, 
+save(glm_con, glm_unc, 
      file = "bios_qexam_data_3_0.Rdata")
 ```
 
 
 ```{r}
 load("bios_qexam_data_3_0.Rdata")
-glm_con
-glm_unc
+
+library(matrixStats)
+colMeans(as.matrix(glm_con), na.rm = TRUE)
+colMeans(as.matrix(glm_unc), na.rm = TRUE)
+
+
+colMeans(as.matrix(glm_con), na.rm = TRUE) - c(1, 0.5, -0.25)
+colMeans(as.matrix(glm_unc), na.rm = TRUE) - c(1.5, -0.25)
+
+colSds(as.matrix(glm_con), na.rm = TRUE)
+colSds(as.matrix(glm_unc), na.rm = TRUE)
+
 ```
 
 
-(e). Perform a simulation study using the generative model in (a). 
+### (e). 
+
+Perform a simulation study using the generative model in (a). 
 comparing different penalization schemes. 
 As in (a), we will assume a sample size of 103. 
 
@@ -209,20 +225,153 @@ For the simulation study, specify the following:
 
 (NB: For the LASSO, you will get a warning message of the form 
 "In lognet(xd, is.sparse, ix, jx, y, weights, offset, alpha, ... : one multinomial or binomial class has fewer than 8 observations; dangerous ground"; 
-you can ignore that. 
+you can ignore that.  For the Firth correction, you will get warning messages of the form "fitted probabilities numerically 0 or 1 occurred for variable V2"; 
+you can disregard those.  In the event that any of your simulation values do not converge, you may remove those from the simulation study. Finally, for the Firth correction, you will want to set the maximum number of iterations to be at least 10000).
 
-For the Firth correction, you will get warning messages of the form "fitted probabilities numerically 0 or 1 occurred for variable V2"; 
-you can disregard those. 
 
-In the event that any of your simulation values do not converge, 
-you may remove those from the simulation study.
 
-Finally, for the Firth correction, 
-you will want to set the maximum number of iterations to be at least 10000).
+The tuning parameter used for glmnet $\alpha = 1$ as LASSO, and $\lambda = 0.1, 0.2, and 0.5$
+The tuning parameter used for logsitf $\alpha = 1$ as LASSO, and $\lambda = 0.1, 0.2, and 0.5$
+
+```{r eval=FALSE, include=TRUE}
+library(tidyverse)
+
+sim_103 <- function(n = 103, seed){
+  set.seed(seed)
+  x1 <- c(abs(rnorm(n, mean = 0, sd = 0.5)))
+  x2 <- c(rnorm(n, mean = 1, sd = 0.5))
+  x3 <- c(rnorm(n, mean = 2, sd = 0.5))
+  logit_p <- 0
+  p_hat <- 1 / (1 + exp(-logit_p))
+  y <- map(rep(p_hat, n), 
+         ~rbinom(n = 1, size = 1, prob = .)) %>% 
+  unlist()
+  data_3 <- data.frame(y, x2, x3) %>%
+  ## simulate x1 which can be separate by outcome y completely
+  mutate(x1 = ifelse(y == 0, -x1, x1))
+  
+  return(data_3)
+}
+
+sim_103s <- map(1:1000, ~sim_103(seed = .))
+```
+
+
+```{r eval=FALSE, include=TRUE}
+library(glmnet)
+
+glmnet_01 <- map_dfc(sim_103s,
+              ~glmnet(x = .[, c(4, 2, 3)],
+                      y = .[, 1],
+                      family = "binomial",
+                      alpha = 1,
+                      lambda = 0.1) %>%
+                coef(s = 0.1) %>%
+                as.vector())
+
+glmnet_02 <- map_dfc(sim_103s,
+              ~glmnet(x = .[, c(4, 2, 3)],
+                      y = .[, 1],
+                      family = "binomial",
+                      alpha = 1,
+                      lambda = 0.2) %>%
+                coef(s = 0.2) %>%
+                as.vector())
+
+
+glmnet_05 <- map_dfc(sim_103s,
+              ~glmnet(x = .[, c(4, 2, 3)],
+                      y = .[, 1],
+                      family = "binomial",
+                      alpha = 1,
+                      lambda = 0.5) %>%
+                coef(s = 0.5) %>%
+                as.vector())
+
+save(glmnet_01, glmnet_02, glmnet_05, 
+     file = "bios_qexam_question_3_glmnet.Rdata")
+```
+
+```{r}
+load("bios_qexam_question_3_glmnet.Rdata")
+library(matrixStats)
+rowMeans(glmnet_01)
+rowMeans(glmnet_02)
+rowMeans(glmnet_05)
+rowSds(as.matrix(glmnet_01))
+rowSds(as.matrix(glmnet_02))
+rowSds(as.matrix(glmnet_05))
+```
+
+$$
+L^*\beta = L(\beta) \times det(I(\beta))^{1/2}
+$$
+
+where $I(\beta)$ is the Fisher information matrix and $L(\beta)$ is the likelihood.
+Firth-type penalization removes the first-order bias of the MLE and bias-preventive rather than corrective for rare events. I do not exactly understand why we need to use Firth's method on noncovergence situation. There is no tuning parameter.
+
+```{r eval=FALSE, include=TRUE}
+library(logistf)
+logistf_01 <- map_dfc(sim_103s,
+              ~logistf(data = ., 
+                   formula = y ~ 1 + x1 + x2 + x3, 
+                   control = logistf.control(maxit = 1000),
+                   modcontrol = logistf.mod.control(tau = 0.1),
+                   firth = TRUE) %>%
+                coef() %>%
+                as.vector()) 
+
+logistf_02 <- map_dfc(sim_103s,
+              ~logistf(data = ., 
+                   formula = y ~ 1 + x1 + x2 + x3, 
+                   control = logistf.control(maxit = 1000),
+                   modcontrol = logistf.mod.control(tau = 0.2),
+                   firth = TRUE) %>%
+                coef() %>%
+                as.vector()) 
+
+logistf_05 <- map_dfc(sim_103s,
+              ~logistf(data = ., 
+                   formula = y ~ 1 + x1 + x2 + x3, 
+                   control = logistf.control(maxit = 1000),
+                   modcontrol = logistf.mod.control(tau = 0.5),
+                   firth = TRUE) %>%
+                coef() %>%
+                as.vector()) 
+
+save(logistf_01, logistf_02, logistf_05, file = "bios_qexam_question_3_logistf.Rdata")
+```
 
 
 ```{r}
+load("bios_qexam_question_3_logistf.Rdata")
+library(matrixStats)
+rowMeans(logistf_01)
+rowMeans(logistf_02)
+rowMeans(logistf_05)
+rowSds(as.matrix(logistf_01))
+rowSds(as.matrix(logistf_02))
+rowSds(as.matrix(logistf_05))
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

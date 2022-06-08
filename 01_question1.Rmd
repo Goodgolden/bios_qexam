@@ -1,7 +1,8 @@
 ---
 title: "01_question1"
-author: "44"
+author: '44'
 date: "2022-06-02"
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
@@ -27,8 +28,10 @@ Let $X_i$ be the age for individuals in the $i$th pair.
 It is hypothesized that
 
 $$
+\begin{split}
 Y_{i1}|X_i \sim Poisson(\gamma \beta(X_i))\\
 Y_{i2}|X_i \sim Poisson(\beta (X_i))
+\end{split}
 $$
 
 where $\beta(·)$ is an unspecified function of $X_i$ (age).
@@ -89,7 +92,7 @@ $$
 & \begin{cases}
 U = Y_1 + Y_{2} \\
 V = Y_{1}\\
-\end{cases}
+\end{cases}\\
 & Y_{1}, Y_{2} \geq 0; 0 \leq V \leq U\\
 & \begin{cases}
 Y_1 = V\\
@@ -205,6 +208,10 @@ of $\gamma_s^∗$ obtained from Steps 2a-2c, respectively.
 
 - Step 3 Define a $1 − \alpha$% CI for $\gamma$ as $\big[{min}_{\{s: I_s =1\}} (\gamma_s^∗), {max}_{\{s:I_s =1\}} (\gamma_s^∗) \big] $ Argue that your colleague's algorithm is a valid approach for constructing a 95% confidence interval. 
 
+
+It is the same as using a stochastic process to find the empirical distribution of $\gamma$. According to Donsker's theroem and Glivenko-Cantelli theorem, we know that the empirical process distribution convergence to the true distribution asymptotically. Hence we can use sampling to generate a valide confidence interval.
+
+
 Write a function which implements this algorithm for arbitrary: 
 - Type-I error $\alpha$ 
 - Input vectors $\pmb y_1, \pmb y_2$
@@ -223,6 +230,7 @@ gety <- function(seed,
   set.seed(seed)
   X <- runif(n, min = 0, max = 1)
   beta <- 2 * exp(-2 * X) 
+  gamma <- 2.2
   
   y1 <- map(gamma * beta, ~rpois(1, .)) %>% unlist()
   y2 <- map(beta, ~rpois(1, .)) %>% unlist()
@@ -231,51 +239,119 @@ gety <- function(seed,
   return(simy)
 }
 
-sim_num <- 2000
+## simulate 5000 y1 y2 set.
+sim_num <- 5000
 y_ss15 <- map(1:sim_num, ~gety(seed = ., n = 15))
-y_ss100 <- map(1:sim_num ~gety(seed = ., n = 100))
-
+y_ss100 <- map(1:sim_num, ~gety(seed = ., n = 100))
 save(y_ss15, y_ss100, file = "bios_qexam_data_1.Rdata")
 
+y1 <- map(y_ss15, ~mean(.[, 1])) %>% unlist()
+y2 <- map(y_ss15, ~mean(.[, 2])) %>% unlist()
+mean(y1); mean(y2); mean(y1) / mean(y2); sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
+mean(y1) / mean(y2) + 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
+mean(y1) / mean(y2) - 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
+power.t.test(n = 15, delta = 2.2 -1, sd = 0.421, sig.level = 0.05)
+
+y1 <- map(y_ss100, ~mean(.[, 1])) %>% unlist()
+y2 <- map(y_ss100, ~mean(.[, 2])) %>% unlist()
+mean(y1); mean(y2); mean(y1) / mean(y2); sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
+mean(y1) / mean(y2) + 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
+mean(y1) / mean(y2) - 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
+power.t.test(n = 100, delta = 1.2, sd = 0.163, sig.level = 0.05)
+```
+
+
+```{r}
+library(tidyverse)
+s15 <- rnorm(n = 5000, mean = 2.2, sd = 0.163)
+s100 <- rnorm(n = 5000, mean = 2.2, sd = 0.163)
+ggplot() +
+  geom_freqpoly(aes(s15), color = "orange") +
+  geom_freqpoly(aes(s100), color = "red") +
+  geom_vline(xintercept = 1,
+             linetype="dashed", 
+                color = "black", 
+             size = 1) +
+  ylab("gamma") + 
+  theme_bw()
 ```
 
 
 
 ```{r}
 load("bios_qexam_data_1.Rdata")
-get_gamma <- function(y1,
-                      y2,
-                      alpha,
+
+## function for question 1d
+get_gamma <- function(y,
+                      alpha = 0.05,
                       gamma_min = 0,
                       gamma_max = 5.5,
                       gamma_step = 0.01,
                       N = 2000) {
   ## sum of y1 y2
+  y1 <- y[, 1]
+  y2 <- y[, 2]
   y12 <- y1 + y2
-  alpha = 0.5
-  gamma_min = 0
-  gamma_max = 5.5
-  gamma_step = 0.01
-  N = 2000
   gamma_int <- seq(gamma_min, gamma_max, by = gamma_step)
+  gamma_hat <- sum(y1) / sum(y2)
   ## emptry matrix to store the values
   gamma_mle <- matrix(NA, nrow = N, ncol = length(gamma_int))
 
   for (j in seq_along(1:N)) {
     for (i in seq_along(1:length(gamma_int))) {
-      phat <- 1 / (1 + gamma_int[i])
-      ya3 <- map(y12, ~rbinom(n = 1, size = ., 
-                              prob = phat)) %>% unlist()
+      phat <- gamma_int[i] / (1 + gamma_int[i])
+      ## simulate y1 | y1+y2 2000 times
+      # ya3 <- map(y12, ~rbinom(n = 1, size = ., 
+      #                         prob = phat)) %>% unlist()
+      ya3 <- rbinom(nrow(y1),
+                    size = unlist(y1 + y2),
+                    prob = phat)
       gamma_mle[j, i] <- sum(ya3) / sum(y12 - ya3) 
     }
   }
-  gamma_mle
+  
+  ## get F(0.25) and F(0.975)
+  q025 <- apply(gamma_mle, 2, 
+                quantile, probs = alpha / 2,
+                na.rm = TRUE)
+
+  q975 <- apply(gamma_mle, 2, 
+                quantile, probs = 1 - alpha / 2, 
+                na.rm = TRUE)
+  ## check whether gamma_int is located inside F025 F975
+  gamma_ind <- ifelse((gamma_hat > q025) & (gamma_hat < q975), 1, 0)
+  ## find the smallest and largest gamma_int
+  lower <- min(gamma_int[which(gamma_ind == 1)])
+  upper <- max(gamma_int[which(gamma_ind == 1)])
+  return(c(lower, upper))
 }
-get_gamma(y1 = y_ss15[[2]][, 1],
-          y2 = y_ss15[[2]][, 2]) %>% View()
+
+# get_gamma(y_ss100[[1]])
 
 ```
 
+```{r eval=FALSE, include=TRUE}
+## parallel programming
+library(furrr)
+library(parallel)
+detectCores()
+
+## use 6 cores
+plan(multisession, workers = 6)
+finall_5k_N15 <- future_map_dfc(y_ss15, ~get_gamma(y = .))
+finall_5k_N100 <- future_map_dfc(y_ss100, ~get_gamma(y = .))
+
+save(finall_5k_N15, finall_5k_N100, finall_per,
+     file = "bios_qexam_question1.Rdata")
+```
+
+
+```{r eval=FALSE, include=TRUE}
+load("bios_qexam_question1.Rdata")
+library(matrixStats)
+rowMeans(as.matrix(finall_5k_N15))
+rowMeans(as.matrix(finall_5k_N100))
+```
 
 
 ## (d) 
@@ -292,9 +368,57 @@ Implement a fully reproducible simulation study which assesses the performance o
 Estimate 95% confidence intervals using the approaches you derived in both (b) and (c) in 5000 simulated datasets and evaluate power for testing the null hypothesis $H_0 : \gamma = 1$. Compare approaches on coverage probability and
 power. Summarize your results in 3-4 sentences as if for a statistical journal. Support your claims using 1-2 tables or figures. Provide well commented code which reproduces your simulation study and recreates your tables/figures.
 
+The confidence interval for sample size 15 is [1.89, 3.11]
 
+The confidence interval for sample size 100 is [1.95, 2.97]
 
 
 ## (e) 
 
-Apply your methods to the dataset "MVPA intervention.csv", a data matrix which con- tains two columns, "Y1" and "Y2", corresponding to the number of 10 minute bouts of moderate-to-vigorous physical activity in matched pairs. Estimate α and construct 95% confidence intervals using both of the approaches you derived in (b) and (c). Write a brief, non-technical, summary of both methods as if communicating to a non-statistician, rec- ommend and justify one approach, and conclude with an interpretation of the estimated coefficient and confidence interval.
+Apply your methods to the dataset "MVPA intervention.csv", a data matrix which contains two columns, "Y1" and "Y2", corresponding to the number of 10 minute bouts of moderate-to-vigorous physical activity in matched pairs. Estimate $\gamma$ and construct 95% confidence intervals using both of the approaches you derived in (b) and (c). 
+
+Write a brief, non-technical, summary of both methods as if communicating to a non-statistician, recommend and justify one approach, and conclude with an interpretation of the estimated coefficient and confidence interval.
+
+
+```{r eval=TRUE, include=TRUE}
+library(tidyverse)
+y <- read_csv("data/MVPA_intervention.csv")
+y1 <- y$Y1
+y2 <- y$Y2
+y1_bar <- mean(y1)
+y2_bar <- mean(y2)
+## mle 
+(mean <- y1_bar / y2_bar)
+## sd 
+
+(gamma <- y1_bar / y2_bar)
+Inof <- ((2 * gamma + 1) / (gamma^2 * (1 + gamma)^2) * sum(y1) - 1 / (gamma + 1)^2 * sum(y2)) / 15
+Inof
+(sd <- (1 / Inof) %>% sqrt()) / sqrt(15); sd
+sd0 <- sqrt((y1_bar + y2_bar) * y1_bar / y2_bar^3) / sqrt(15)
+sd0
+## 95% CI
+mean - 1.96 * sd0
+mean + 1.96 * sd0 
+
+get_gamma(y = y, gamma_max = 15)
+```
+
+
+```{r}
+## use permutation to get the confidence interval 
+y_permu <- map(1:1000, ~sample_n(y, size = 15, replace = TRUE))
+
+## parallel programming
+library(furrr)
+library(parallel)
+
+## use 6 cores
+plan(multisession, workers = 6)
+finall_per <- future_map_dfc(y_permu, ~get_gamma(y = ., gamma_max = 10))
+rowMedians(as.matrix(finall_per))
+## [1] 1.67 9.95
+## [1] 1.825 8.640
+
+```
+
