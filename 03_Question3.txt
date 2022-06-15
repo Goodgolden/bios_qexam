@@ -1,0 +1,206 @@
+## "sim_method1" ---------------------------------------
+library(tidyverse)
+set.seed(55555)
+
+n <- 100000
+N <- n * 10
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+
+x1abs <- c(abs(rnorm(n, mean = 0, sd = 0.5)))
+x2 <- c(rnorm(2 * N, mean = 1, sd = 0.5))
+x3 <- c(rnorm(2 * N, mean = 2, sd = 0.5))
+
+beta23 <- as.matrix(c(beta2, beta3))
+X23 <- as.matrix(cbind(x2, x3))
+# str(beta23); dim(beta23)
+# str(X23); dim(X23)
+
+logit_p <- X23 %*% beta23
+mean(logit_p) ## [1] 4.258361e-05
+p_hat <- 1 / (1 + exp(-logit_p))
+mean(p_hat) ## [1] 0.500011
+
+y <- map(p_hat, 
+         ~rbinom(n = 1, size = 1, prob = .)) %>% 
+  unlist()
+
+data_3_0 <- data.frame(y, x2, x3) %>%
+  ## simulate x1 which can be separate by outcome y completely
+  mutate(x1 = ifelse(y == 1, x1abs, -x1abs))
+# View(data_3_0)
+
+fit_3_0 <- glm(y ~ 0 + x1 + x2 + x3,
+               family = binomial("logit"),
+               data = data_3_0)
+
+## simulation method2 ----------------------------------------
+n <- 100000
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+y <- c(rep(0, n), rep(1, n))
+x1 <- c(abs(rnorm(n, mean = , sd = 0.5)), 
+        -abs(rnorm(n, mean = 1, sd = 0.5)))
+x2 <- c(rnorm(2 * n, mean = 1, sd = 0.5))
+x3 <- c(rnorm(2 * n, mean = 2, sd = 0.5))
+
+data_3_1 <- data.frame(y, x1, x2, x3)
+# mean(data_3_1$x1)
+# mean(data_3_1$y)
+
+# save(data_3_0, data_3_1, file = "bios_qexam_data_3_0.Rdata")
+
+
+## smulation method3 ----------------------------------------
+n <- 100000
+beta1 <- 1
+beta2 <- 0.5
+beta3 <- -0.25
+y <- c(rep(0, n), rep(1, n))
+glm_con <- matrix(NA, nrow = n, ncol = 3) 
+glm_unc <- matrix(NA, nrow = n, ncol = 2)
+
+for (i in seq_along(1:1000)) {
+  x1 <- c(abs(rnorm(n, mean = 1, sd = 0.5)), 
+          -abs(rnorm(n, mean = 1, sd = 0.5)))
+  x2 <- c(rnorm(2 * n, mean = 1, sd = 0.5))
+  x3 <- c(rnorm(2 * n, mean = 2, sd = 0.5))
+  
+  data_sim <- data.frame(y, x1, x2, x3)
+  
+  fit_3_0 <- glm(y ~ 0 + x1 + x2 + x3,
+                 family = binomial("logit"),
+                 data = data_sim)
+  
+  fit_3_1 <- glm(y ~ 0 + x2 + x3,
+                 family = binomial("logit"),
+                 data = data_sim)
+  
+  glm_con[i, ] <- fit_3_0$coefficients
+  glm_unc[i, ] <- fit_3_1$coefficients
+}
+
+save(glm_con, glm_unc, 
+     file = "bios_qexam_data_3_0.Rdata")
+
+load("bios_qexam_data_3_0.Rdata")
+
+library(matrixStats)
+colMeans(as.matrix(glm_con), na.rm = TRUE)
+colMeans(as.matrix(glm_unc), na.rm = TRUE)
+
+
+colMeans(as.matrix(glm_con), na.rm = TRUE) - c(1, 0.5, -0.25)
+colMeans(as.matrix(glm_unc), na.rm = TRUE) - c(1.5, -0.25)
+
+colSds(as.matrix(glm_con), na.rm = TRUE)
+colSds(as.matrix(glm_unc), na.rm = TRUE)
+
+library(tidyverse)
+
+sim_103 <- function(n = 103, seed){
+  set.seed(seed)
+  x1 <- c(abs(rnorm(n, mean = 0, sd = 0.5)))
+  x2 <- c(rnorm(n, mean = 1, sd = 0.5))
+  x3 <- c(rnorm(n, mean = 2, sd = 0.5))
+  logit_p <- 0
+  p_hat <- 1 / (1 + exp(-logit_p))
+  y <- map(rep(p_hat, n), 
+           ~rbinom(n = 1, size = 1, prob = .)) %>% 
+    unlist()
+  data_3 <- data.frame(y, x2, x3) %>%
+    ## simulate x1 which can be separate by outcome y completely
+    mutate(x1 = ifelse(y == 0, -x1, x1))
+  
+  return(data_3)
+}
+
+sim_103s <- map(1:1000, ~sim_103(seed = .))
+
+
+## glmnet -------------------------------------------------
+library(glmnet)
+
+glmnet_01 <- map_dfc(sim_103s,
+                     ~glmnet(x = .[, c(4, 2, 3)],
+                             y = .[, 1],
+                             family = "binomial",
+                             alpha = 1,
+                             lambda = 0.1) %>%
+                       coef(s = 0.1) %>%
+                       as.vector())
+
+glmnet_02 <- map_dfc(sim_103s,
+                     ~glmnet(x = .[, c(4, 2, 3)],
+                             y = .[, 1],
+                             family = "binomial",
+                             alpha = 1,
+                             lambda = 0.2) %>%
+                       coef(s = 0.2) %>%
+                       as.vector())
+
+
+glmnet_05 <- map_dfc(sim_103s,
+                     ~glmnet(x = .[, c(4, 2, 3)],
+                             y = .[, 1],
+                             family = "binomial",
+                             alpha = 1,
+                             lambda = 0.5) %>%
+                       coef(s = 0.5) %>%
+                       as.vector())
+
+save(glmnet_01, glmnet_02, glmnet_05, 
+     file = "bios_qexam_question_3_glmnet.Rdata")
+
+load("bios_qexam_question_3_glmnet.Rdata")
+library(matrixStats)
+rowMeans(glmnet_01)
+rowMeans(glmnet_02)
+rowMeans(glmnet_05)
+rowSds(as.matrix(glmnet_01))
+rowSds(as.matrix(glmnet_02))
+rowSds(as.matrix(glmnet_05))
+
+## logistf -----------------------------------------------------------
+
+library(logistf)
+logistf_01 <- map_dfc(sim_103s,
+                      ~logistf(data = ., 
+                               formula = y ~ 1 + x1 + x2 + x3, 
+                               control = logistf.control(maxit = 1000),
+                               modcontrol = logistf.mod.control(tau = 0.1),
+                               firth = TRUE) %>%
+                        coef() %>%
+                        as.vector()) 
+
+logistf_02 <- map_dfc(sim_103s,
+                      ~logistf(data = ., 
+                               formula = y ~ 1 + x1 + x2 + x3, 
+                               control = logistf.control(maxit = 1000),
+                               modcontrol = logistf.mod.control(tau = 0.2),
+                               firth = TRUE) %>%
+                        coef() %>%
+                        as.vector()) 
+
+logistf_05 <- map_dfc(sim_103s,
+                      ~logistf(data = ., 
+                               formula = y ~ 1 + x1 + x2 + x3, 
+                               control = logistf.control(maxit = 1000),
+                               modcontrol = logistf.mod.control(tau = 0.5),
+                               firth = TRUE) %>%
+                        coef() %>%
+                        as.vector()) 
+
+save(logistf_01, logistf_02, logistf_05, file = "bios_qexam_question_3_logistf.Rdata")
+
+## summary -------------------------------------------------
+load("bios_qexam_question_3_logistf.Rdata")
+library(matrixStats)
+rowMeans(logistf_01)
+rowMeans(logistf_02)
+rowMeans(logistf_05)
+rowSds(as.matrix(logistf_01))
+rowSds(as.matrix(logistf_02))
+rowSds(as.matrix(logistf_05))

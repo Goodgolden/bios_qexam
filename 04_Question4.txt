@@ -1,136 +1,3 @@
----
-title: "04_question4"
-author: '44'
-date: "2022-06-02"
-output:
-  word_document: default
-  html_document: default
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-# Q4 
-
-You have received data on patients with cardiac monitoring devices that detect atrial fibrillation events.
-In reporting the counts of atrial fibrillation events within one month, 
-for some patients (Group A) the number of events is available while for the rest (Group B) 
-you only have a binary indicator of whether the count was non-zero. 
-
-There is no information in the data set that will let you know whether 
-the value presented is a count or a binary indicator (i.e., data from groups A and B are mixed together). 
-
-The data is available in ATFIB.txt and contains the following columns:
-- id: unique patient identifier
-- outcome: observed outcome (i.e., the direct actual count of atrial fibrillation events or 
-the binary indicator of a non-zero count)
-
-
-## (a) 
-
-Given what you know about the data collection, you realize that you could consider the data to arise from a Poisson random variable $Y$ with mean $\lambda$ for which you observe either $Y$ directly (Group A), or the $I(Y > 0)$ (Group B). 
-
-Which group each individual belongs to can be considered missing data. 
-
-Define a latent variable $Z \sim Bernoulli(p)$, independent of $Y$, 
-as a binary indicator of whether $Y$ is observed directly 
-(i.e., $Z = 1$ indicates an observation is from Group A and $Z = 0$ indicates an observation is from Group B). 
-
-The observed outcome $X$ can then be defined in terms of $Y \sim Poisson(\lambda)$, $I(Y > 0)$ and $Z$.
-
-Write out the likelihood for:
-
-### i. The observed data (X). 
-
-Hint: Consider the cases 
-- (i) X = 0: there is no event
-- (ii) X = 1: there is $= 1$ or $> 1$ events
-- (iii) X = k, k > 1: there are k events
-
-
-$$
-\begin{split}
-& Y_i|Z_i=1 \sim Poisson(\lambda)\\
-& P(Y = 0) = e^{-\lambda}\\
-& P(Y = 0 | Z = 1) = e^{-\lambda} \\
-& P(Y = 1 | Z = 1) = \lambda e^{-\lambda}\\  
-& Y_i|Z_i=0 \sim Bernoulli(1 - e^{-\lambda})\\
-& P(Y = 0 | Z = 0) = e^{-\lambda}\\
-& P(Y = 1 | Z = 0) = 1 - e^{-\lambda}\\
-& Z_i \sim Bernoulli(p_3)
-\end{split}
-$$
-
-The mixture of degenerate distribution at zero with probability $p_1$ and Poisson distribution with probability $1 - p_1$; so the Poisson mixed with two point masses at 0 with $p_1$ and at $1$ with $p_2$; $p_3 = 1- p_1 - p_2$.
-
-$$
-\begin{split}
-P(Y = y) & = P(Y|Z=0) \times P(Z=0) + P(Y |Z=1) \times P(Z = 1)\\
-& = \begin{cases}
-p_1 + p_3 e^{-\lambda} = e^{-\lambda} & y = 0 \\
-p_2 + p_3 \lambda e^{-\lambda}  & y = 1\\
-0 + p_3 \frac {\lambda^ye^{-\lambda}} {y!} & y > 1
-\end{cases}\\
-p_1 & = P(Y = 0|Z=0) \times P(Z=0) = 
-\frac {\lambda^{0} e^{-\lambda}} {0!} p_3 = e^{-\lambda} (1 - p_3)\\
-p_2 & = P(Y = 1|Z=0) \times P(Z=0) = (1 - e^{-\lambda}) (1 - p_3) \\
- p_1 & + p_2 + p_3 = 1 \\
-L(p_3, \lambda | Y ) & = \prod_{i \in \{y_i = 0\}} e^{-\lambda}
-\prod_{i \in \{y_i = 1\}} (1 - e^{-\lambda}) (1 - p_3) + p_3 \lambda e^{-\lambda}
-\prod_{i \in \{y_i > 1\}} p_3 \frac {\lambda^ye^{-\lambda}} {y!}
-\end{split}
-$$
-
-### ii. The complete data $(Y, Z)$. 
-Hint: Consider the cases for when 
-(i) Z = 1,Y = k, 
-(ii) Z = 0, Y = 0, 
-(iii) Z = 0, Y = k, k>0
-
-$$
-\begin{split}
-P(Y, Z) & = P(Y|Z) \times P(Z) = 
-\begin{cases}
-P(Y = 0 |Z = 1) \times P(Z = 1) = e^{-\lambda} p_3\\
-P(Y = 1 |Z = 1) \times P(Z = 1) = \lambda e^{-\lambda} p_3\\
-P(Y = k |Z = 1) \times P(Z = 1) = \frac {\lambda^ k  e^{-\lambda}} {k} p_3\\
-P(Y = 0 |Z = 0) \times P(Z = 0) = e^{-\lambda}(1-p_3)\\
-P(Y = k |Z = 0) \times P(Z = 0) = 0\\
-P(Y = 1 |Z = 0) \times P(Z = 0) = (1 - e^{-\lambda})(1-p_3)
-\end{cases}\\
-L(p_3, \lambda | (Y, Z) ) & = \prod_{i \in \{z_i = 1\}} \frac {\lambda^y_i  e^{-\lambda}} {y_i} p_3
-\prod_{i \in \{z_i = 0, y_i = 0\}} e^{-\lambda}(1-p_3)
-\prod_{i \in \{z_i = 0, y_i = 1\}} (1 - e^{-\lambda})(1-p_3)\\
- & = \prod_{i \in \{z_i = 1\}} \frac {\lambda^y_i  e^{-\lambda}} {y_i} p_3
-\prod_{i \in \{z_i = 0, y_i = 0\}} p_1
-\prod_{i \in \{z_i = 0, y_i = 1\}} p_2
-\end{split}
-$$
-
-When $Z = 0$, we do not have the information of exact $Y$, but a Bernoulli conditional on the probability of $Z = 0$. 
-
-
-## (b) Numerically optimize the observed data log-likelihood using "optim" in R, 
-to obtain the estimates, standard errors, and 95% confidence intervals for $\lambda$ and $p$.
-
-Provide non-technical interpretations for these parameters. 
-Comment on how you think these results would differ if you had data on $Z$, 
-and the reason for those differences.
-
-$$
-\begin{split}
-L(p_3, \lambda | Y ) & = \prod_{i \in \{y_i = 0\}} e^{-\lambda}
-\prod_{i \in \{y_i = 1\}} (1 - e^{-\lambda}) (1 - p_3) + p_3 \lambda e^{-\lambda}
-\prod_{i \in \{y_i > 1\}} p_3 \frac {\lambda^ye^{-\lambda}} {y!}\\
-logL(p_3, \lambda | Y ) & = -\sum_{i \in \{y_i = 0\}} {\lambda} + 
-\sum_{i \in \{y_i = 1\}} log\Big((1 - e^{-\lambda}) (1 - p_3) + p_3 \lambda e^{-\lambda}\Big) + 
-\sum_{i \in \{y_i > 1\}} log (p_3) + y log (\lambda) - \lambda - log({y!})
-\end{split}
-$$
-
-
-```{r fig.height=3, fig.width=3}
 library(readr)
 library(tidyverse)
 
@@ -165,7 +32,7 @@ get_logL_inc <- function(parameter,
   logLk <- 0
   for (yi in yk$outcome) {
     logLk <- logLk + log(p) + yi * log(lambda) - lambda - log(gamma(yi + 1))
-    }
+  }
   (neg_logL <- -(logL0 + logL1 + logLk))
   return(neg_logL)
 }
@@ -177,25 +44,12 @@ p_hat <- optim(par = c(0.1, 2),
                datay = data_4,
                hessian = T)
 (par_mean <- p_hat$par)
+## confidence interval
 (par_sd <- solve(p_hat$hessian) %>% diag() %>% sqrt())
 par_mean + 1.96 * par_sd
 par_mean - 1.96 * par_sd
-```
 
 
-
-## (c) You begin to suspect that maybe the data was actually collected consistently, and only represents counts that arise from a $Poisson(\lambda)$ distribution. 
-
-Perform an appropriate statistical test to formally test this assumption for your data. State the null and alternative hypotheses for your test, and the asymptotic distribution of the test statistic under the null. Present your conclusions based on this test.
-
-The Poisson model can be regarded as a special nested case of the mixed model in (a); hence we can use likelihood ratio test to test the hypothesis.
-
-$$
-\Lambda = -2 log \Bigg[\frac{sup_{\theta \in \Theta_0} L(\theta)} {sup_{\theta \in \Theta} L(\theta)} \Bigg] \sim \chi^2
-$$
-
-
-```{r}
 #' Title Negative likelihood for Poisson regression
 #' @param lambda `numeric` a positive value as Poisson distribution parameter
 #' @param datay `data.frame` the observed dataset 
@@ -211,53 +65,26 @@ get_logL_pois <- function(lambda,
 }
 
 lambda_pois <- optim(par = 1, 
-               fn = get_logL_pois,
-               method = "Brent",
-               lower = 0,
-               upper = 6,
-               datay = data_4)
+                     fn = get_logL_pois,
+                     method = "Brent",
+                     lower = 0,
+                     upper = 6,
+                     datay = data_4)
 lambda_pois$par
-```
 
-```{r}
+
 logL_mix <- get_logL_inc(c(1.000, 1.868),
                          datay = data_4)
 
 
 logL_poisson <- get_logL_pois(lambda = 1.612,
-                          datay = data_4)
+                              datay = data_4)
 
 # logL_mix; logL_poisson
-
+## LRT test 
 2 * abs(logL_mix - logL_poisson) %>% 
   pchisq(df = 1, lower.tail = FALSE)
-```
 
-
-## (d) Design and conduct a simulation study that evaluates the efficiency of estimation using the incomplete data versus the complete data (i.e., the incomplete data augmented with a column for $Z$). Specifically, report bias and efficiency for estimating $\lambda$. Fix $\lambda = 1$. Vary sample size $(N = 100, 1000)$ and $p \ (p = 0.2,0.5,0.8)$ to generate data from 6 settings. Simulate a reasonable number of replicates.
-
-
-$$
-\begin{split}
-&  HW = z_{1−\alpha/2} \sqrt{\frac {Var(Y)} {n}}\\
-& n_w = \bigg({\frac{z_{1−\alpha/2}} {HW}}\bigg)^2 Var(W) \\
-&  n_y = \bigg({\frac{z_{1−\alpha/2}} {HW}}\bigg)^2 Var(Y) \\
-& TE_w = \bigg({\frac{z_{1−\alpha/2}} {HW}}\bigg)^2 Var(W)  E_w\\
-& TE_y = \bigg({\frac{z_{1−\alpha/2}} {HW}}\bigg)^2 Var(Y) E_y\\
-& ARE(W, Y) = Var(Y) / Var(W) 
-\end{split}
-$$
-
-- Two random variables are simulated as $W$ with $M_w$ method and $Y$ with $M_y$ method, with $E[W] = E[Y] = \theta$
-- $HW$ is the half width
-- Let $E_w$ and $E_y$ denote the amount of computational effort required to produce one sample of $W$ and $Y$, respectively. 
-- Then the total effort expended by $M_w$ and $M_y$, respectively, to achieve a half width $HW$
-- $M_w$ is more efficient than $M_y$ if $TE_w < TE_y$. Note that $TE_w < TE_y$ if and only if $Var(W)E_w < Var(Y)E_y$. 
-- $ARE(W, Y)$ is used to qualify $E_y$ and $E_w$
-
-### i. Submit commented code that describes (i) data generation process, (ii) estimation, and (iii) computation of metrics.
-
-```{r eval=FALSE, include=TRUE}
 lambda <- 1
 p <- 0.8
 N <- 100
@@ -301,15 +128,8 @@ sim_N1k_p08 <- map(1:sim_num, ~get_sim(seed = ., N = 1000, p = 0.8))
 save(sim_N100_p02, sim_N100_p05, sim_N100_p08,
      sim_N1k_p02, sim_N1k_p05, sim_N1k_p08,
      file = "bios_qexam_question_4.Rdata")
-```
 
 
-```{r}
-load("bios_qexam_question_4.Rdata")
-```
-
-
-```{r}
 #' Title Loglikelihood for inflated mixture model with imcomplete dataset
 #' @param lambda `numeric` a positive value as Poisson distribution parameter
 #' @param p `numeric` a positive value in [0, 1] as Bernoulli distribution parameter
@@ -317,7 +137,7 @@ load("bios_qexam_question_4.Rdata")
 #' @return `neg_logL` the negative log-likelihood
 #' @export
 get_logL_incomplete <- function(parameter,
-                         datayz) {
+                                datayz) {
   ## need to argue why lambda 
   ## and p are seperated 
   p <- parameter[1] %>% as.numeric()
@@ -344,28 +164,7 @@ get_logL_incomplete <- function(parameter,
 }
 
 # get_logL_incomplete(c(0.5, 2), sim_N100_p02[[5]])
-```
 
-
-$$
-\begin{split}
-L(p_3, \lambda | (Y, Z) ) & = \prod_{i \in \{z_i = 1\}} \frac {\lambda^y_i  e^{-\lambda}} {y_i} p_3
-\prod_{i \in \{z_i = 0, y_i = 0\}} e^{-\lambda}(1-p_3)
-\prod_{i \in \{z_i = 0, y_i = 1\}} (1 - e^{-\lambda})(1-p_3)\\
- & = \prod_{i \in \{z_i = 1\}} \frac {\lambda^y_i  e^{-\lambda}} {y_i} p_3
-\prod_{i \in \{z_i = 0, y_i = 0\}} p_1
-\prod_{i \in \{z_i = 0, y_i = 1\}} p_2\\
-logL(p_3, \lambda | (Y, Z) ) & = \sum_{i \in \{z_i = 1\}} log (p_3) + y_i log (\lambda) - \lambda - log({y_i!})
-\sum_{i \in \{z_i = 0, y_i = 0\}} log(p_1)
-\sum_{i \in \{z_i = 0, y_i = 1\}} log(p_2)\\
-p_1 & = P(Y = 0|Z=0) \times P(Z=0) = 
-\frac {\lambda^{0} e^{-\lambda}} {0!} p_3 = e^{-\lambda} (1 - p_3)\\
-p_2 & = P(Y = 1|Z=0) \times P(Z=0) = (1 - e^{-\lambda}) (1 - p_3) \\
- p_1 & + p_2 + p_3 = 1 \\
-\end{split}
-$$
-
-```{r}
 get_logL_complete <- function(parameter,
                               datayz) {
   ## need to argue why lambda 
@@ -395,9 +194,7 @@ get_logL_complete <- function(parameter,
   (neg_logL <- -(logLy0 + logLy1 + logLk))
   return(neg_logL)
 }
-```
 
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
 get_optim <- function(datayz) {
   ## get the estimation of parameters
   par_cpl <- optim(par = c(0.1, 1), 
@@ -429,12 +226,10 @@ save(result_N100_p02, result_N1k_p02,
      result_N100_p05, result_N1k_p05,
      result_N100_p08, result_N1k_p08,
      file = "bios_qexam_quesion_4_result.Rdata")
-```
 
 
 ### ii. Summarize your results in a short report (2-3 paragraphs) and 1-2 figures or summary tables. Give hypotheses, conclusions, and recommendations based on what you have found.
 
-```{r}
 library(matrixStats)
 load("bios_qexam_quesion_4_result.Rdata")
 
@@ -479,13 +274,4 @@ rowMeans(result_N1k_p08) - c(0.2, 1, 0.2, 1)
 (sd_N1k_p02[[2]] / sd_N1k_p02[[4]])^2
 (sd_N1k_p05[[2]] / sd_N1k_p02[[4]])^2
 (sd_N1k_p08[[2]] / sd_N1k_p08[[4]])^2
-```
-
-
-
-
-
-
-
-
 

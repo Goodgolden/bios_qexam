@@ -222,43 +222,7 @@ $(V_{i} | U_i, X_{i}; \theta) \sim Binomial(U_i, \frac {1} {\gamma + 1})$
 
 $\hat \gamma = \frac {\sum_{i=1}^n y_{i1}} {\sum_{i=1}^n y_{i2}} = \frac {\bar Y_1} {\bar Y_2}$
 
-```{r eval=FALSE, include=TRUE}
-library(tidyverse)
 
-gety <- function(seed, 
-                 n = 15) {
-  set.seed(seed)
-  X <- runif(n, min = 0, max = 1)
-  beta <- 2 * exp(-2 * X) 
-  gamma <- 2.2
-  
-  y1 <- map(gamma * beta, ~rpois(1, .)) %>% unlist()
-  y2 <- map(beta, ~rpois(1, .)) %>% unlist()
-  
-  simy <- cbind(y1 = y1, y2 = y2)
-  return(simy)
-}
-
-## simulate 5000 y1 y2 set.
-sim_num <- 5000
-y_ss15 <- map(1:sim_num, ~gety(seed = ., n = 15))
-y_ss100 <- map(1:sim_num, ~gety(seed = ., n = 100))
-save(y_ss15, y_ss100, file = "bios_qexam_data_1.Rdata")
-
-y1 <- map(y_ss15, ~mean(.[, 1])) %>% unlist()
-y2 <- map(y_ss15, ~mean(.[, 2])) %>% unlist()
-mean(y1); mean(y2); mean(y1) / mean(y2); sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
-mean(y1) / mean(y2) + 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
-mean(y1) / mean(y2) - 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 15))
-power.t.test(n = 15, delta = 2.2 -1, sd = 0.421, sig.level = 0.05)
-
-y1 <- map(y_ss100, ~mean(.[, 1])) %>% unlist()
-y2 <- map(y_ss100, ~mean(.[, 2])) %>% unlist()
-mean(y1); mean(y2); mean(y1) / mean(y2); sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
-mean(y1) / mean(y2) + 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
-mean(y1) / mean(y2) - 1.96 * sqrt((mean(y1) + mean(y2))^3 * mean(y2) / (mean(y1)^3 * 100))
-power.t.test(n = 100, delta = 1.2, sd = 0.163, sig.level = 0.05)
-```
 
 
 ```{r}
@@ -288,6 +252,7 @@ get_gamma <- function(y,
                       gamma_max = 5.5,
                       gamma_step = 0.01,
                       N = 2000) {
+  y <- as.data.frame(y)
   ## sum of y1 y2
   y1 <- y[, 1]
   y2 <- y[, 2]
@@ -303,7 +268,8 @@ get_gamma <- function(y,
       ## simulate y1 | y1+y2 2000 times
       # ya3 <- map(y12, ~rbinom(n = 1, size = ., 
       #                         prob = phat)) %>% unlist()
-      ya3 <- rbinom(nrow(y1),
+      
+      ya3 <- rbinom(length(y1),
                     size = unlist(y1 + y2),
                     prob = phat)
       gamma_mle[j, i] <- sum(ya3) / sum(y12 - ya3) 
@@ -326,7 +292,7 @@ get_gamma <- function(y,
   return(c(lower, upper))
 }
 
-# get_gamma(y_ss100[[1]])
+get_gamma(y_ss100[[1]])
 
 ```
 
@@ -341,16 +307,23 @@ plan(multisession, workers = 6)
 finall_5k_N15 <- future_map_dfc(y_ss15, ~get_gamma(y = .))
 finall_5k_N100 <- future_map_dfc(y_ss100, ~get_gamma(y = .))
 
+sum(ifelse(1 > finall_5k_N15[1,] & 1 < finall_5k_N15[2, ], 1, 0)) / 5000
+sum(ifelse(1 > finall_5k_N100[1,] & 1 < finall_5k_N100[2, ], 1, 0))/ 5000
+
 save(finall_5k_N15, finall_5k_N100, finall_per,
      file = "bios_qexam_question1.Rdata")
+finall_5k_N15
+hist(unlist(finall_5k_N15[1, ]))
+finall_5k_N100 <- rnorm()
+hist
 ```
 
 
 ```{r eval=FALSE, include=TRUE}
 load("bios_qexam_question1.Rdata")
 library(matrixStats)
-rowMeans(as.matrix(finall_5k_N15))
-rowMeans(as.matrix(finall_5k_N100))
+rowMedians(as.matrix(finall_5k_N15))
+rowMedians(as.matrix(finall_5k_N100))
 ```
 
 

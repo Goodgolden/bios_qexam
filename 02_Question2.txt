@@ -1,0 +1,399 @@
+## import dataset data_lla
+data_lla <- read_csv("data/data-lla.csv", 
+                     col_types = cols(
+                       ## amputation location as binary variable
+                       amp.above = col_factor(levels = c("0", "1")),
+                       ## older age or not as binary variable 
+                       older = col_factor(levels = c("0", "1")))) 
+
+
+data_lla_diff6 <- data_lla %>% 
+  ## change the from long format into wide format
+  pivot_wider(names_from = "time",
+              values_from = "stepc") %>%
+  ## calculated the different from time0 to time6
+  mutate(step_diff = abs(`6` - `0`)) %>% 
+  ## binary outcome of whether the change of step is over 1000
+  mutate(step_diff_1k = case_when(step_diff >= 1000 ~ 1,
+                                  step_diff < 1000 ~ 0),
+         baseline = `0`)
+
+# View(data_lla_diff6)## import dataset data_lla
+data_lla <- read_csv("data/data-lla.csv", 
+                     col_types = cols(
+                       ## amputation location as binary variable
+                       amp.above = col_factor(levels = c("0", "1")),
+                       ## older age or not as binary variable 
+                       older = col_factor(levels = c("0", "1")))) 
+
+
+data_lla_diff6 <- data_lla %>% 
+  ## change the from long format into wide format
+  pivot_wider(names_from = "time",
+              values_from = "stepc") %>%
+  ## calculated the different from time0 to time6
+  mutate(step_diff = abs(`6` - `0`)) %>% 
+  ## binary outcome of whether the change of step is over 1000
+  mutate(step_diff_1k = case_when(step_diff >= 1000 ~ 1,
+                                  step_diff < 1000 ~ 0),
+         baseline = `0`)
+
+# View(data_lla_diff6)
+
+#### using change score model -------------------------------------------------
+
+
+fit_2_0 <- lm(step_diff ~ 1 + treat + older + amp.above,
+              # control = fit_control,
+              data = data_lla_diff6)
+
+## to get the coefficients
+beta_2_0 <- coef(fit_2_0) %>% round(digits = 3)
+beta_2_0
+## to get the variance-covariance
+vcov_2_0 <- vcov(fit_2_0) %>% round(digits = 3)
+vcov_2_0
+
+
+##                  [1]       [2]       [3]       [4]       
+## coefs           (Int)      treatEXP  old1      amp.above1
+con_trt_old_abv <- c(1,        1,        1,        1)
+con_trt_old_blw <- c(1,        1,        1,        0)
+con_trt_yng_abv <- c(1,        1,        0,        1)
+con_trt_yng_blw <- c(1,        1,        0,        0)
+
+con_ctl_old_abv <- c(1,        0,        1,        1)
+con_ctl_old_blw <- c(1,        0,        1,        0)
+con_ctl_yng_abv <- c(1,        0,        0,        1)
+con_ctl_yng_blw <- c(1,        0,        0,        0)
+
+## this is the contrast of all the 
+contr1 <- cbind(con_trt_old_abv,
+                con_trt_old_blw,
+                con_trt_yng_abv,
+                con_trt_yng_blw,
+                con_ctl_old_abv,
+                con_ctl_old_blw,
+                con_ctl_yng_abv,
+                con_ctl_yng_blw)
+
+contr1_1 <- cbind(con_trt_old_abv - con_ctl_old_abv,
+                  con_trt_old_blw - con_ctl_old_blw,
+                  con_trt_yng_abv - con_ctl_yng_abv,
+                  con_trt_yng_blw - con_ctl_yng_blw)
+
+rownames(contr1) <- rownames(vcov_2_0)
+
+mu_2_0 <- t(contr1) %*% beta_2_0 %>%
+  as.data.frame() %>%
+  dplyr::select("expected_mean" = 1)
+## contrast variance covariance matrix
+sd_2_0 <- t(contr1) %*% vcov_2_0 %*% contr1 %>%
+  diag() %>% sqrt()
+cbind(mu_2_0, "standard_error" = sd_2_0) %>%
+  round(3)
+
+mu_2_01 <- t(contr1_1) %*% beta_2_0 %>%
+  as.data.frame() %>%
+  dplyr::select("expected_mean" = 1)
+## contrast variance covariance matrix
+sd_2_01 <- t(contr1_1) %*% vcov_2_0 %*% contr1_1 %>%
+  diag() %>% sqrt()
+cbind(mu_2_01, "standard_error" = sd_2_01) %>%
+  round(3)
+
+qnorm(0.05, 1081.156,	0.811)	
+
+#### using linear mixed model -------------------------------------------------
+data_lla_tf <- data_lla %>%
+  mutate(time = as.factor(time))
+
+
+fit_2_1 <- lmer(stepc ~ 1 + treat * time + older + amp.above + 
+                  + (1|id),
+                # control = fit_control,
+                data = data_lla_tf)
+
+## to get the coefficients
+beta_2_1 <- (summary(fit_2_1)$coefficients[, 1]) %>% round(digits = 3)
+# beta_2_1
+## to get the variance-covariance
+vcov_2_1 <- vcov(fit_2_1) 
+# vcov_2_1
+
+## lmm contrast---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  older1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_trt_t0 <-   c(1,    1,        0,    0,      1,      1,        0,            0)
+con_trt_t6 <-   c(1,    1,        1,    0,      1,      1,        1 * 1,        0)
+con_trt_t18 <-  c(1,    1,        0,    1,      1,      1,        0,            1 * 1)
+con_ctl_t0 <-   c(1,    0,        0,    0,      1,      1,        0,            0)
+con_ctl_t6 <-   c(1,    0,        1,    0,      1,      1,        0,            0)
+con_ctl_t18 <-  c(1,    0,        0,    1,      1,      1,        0,            0)
+con_trt_t6_t0 <- con_trt_t6 - con_trt_t0
+con_ctl_t6_t0 <- con_ctl_t6 - con_ctl_t0
+con_trt_t6_t0 - con_ctl_t6_t0
+
+contrast0 <- cbind(con_trt_t6_t0, con_ctl_t6_t0)
+mu_lm <- t(contrast0) %*% beta_2_1 
+## standard error for each group
+sd_lm <- t(contrast0) %*% vcov_2_1 %*% contrast0 %>%
+  diag() %>% sqrt()
+
+cbind(mu_lm, sd_lm) %>%
+  as.data.frame() %>%
+  dplyr::select("expected mean" = 1,
+                "standard_error" = 2) %>%
+  round(3)
+
+
+t <- (1140.121 - (-58.962))/ 1.062; t
+
+con_trt_t6_t0 <- con_trt_t6 - con_trt_t0
+con_ctl_t6_t0 <- con_ctl_t6 - con_ctl_t0
+
+con_tvc_t6_t0 <- con_trt_t6_t0 - con_ctl_t6_t0
+mu_2_3 <- t(con_tvc_t6_t0 ) %*% beta_2_1 %>%
+  as.data.frame() %>%
+  dplyr::select("expected_mean" = 1)
+## contrast variance covariance matrix
+sd_2_3 <- t(con_tvc_t6_t0 ) %*% vcov_2_1 %*% con_tvc_t6_t0  %>%
+  diag() %>% sqrt()
+
+cbind(mu_2_3, "standard_error" = sd_2_3) %>%
+  round(3)
+
+qnorm(0.05, mean = 1199.083, sd = 1.501)
+pnorm(1000, mean = 1199.083, sd = 1.501)
+
+#### using generalized linear mixed model ---------------------------------------
+
+
+fit_2_2 <- glmer(stepc ~ 1 + treat * time + older + amp.above + 
+                   + (1|id),
+                 family = "poisson",
+                 # control = fit_control,
+                 data = data_lla_tf)
+
+## to get the coefficients
+beta_2_2 <- (summary(fit_2_2)$coefficients[, 1]) %>% round(digits = 3)
+# beta_2_2
+## to get the variance-covariance
+vcov_2_2 <- vcov(fit_2_2) 
+# vcov_2_2
+
+
+
+
+
+## old amputation above ---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  older1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_old_abv_trt_t0 <-   c(1,    1,        0,    0,      1,      1,        0,            0)
+con_old_abv_trt_t6 <-   c(1,    1,        1,    0,      1,      1,        1 * 1,        0)
+con_old_abv_trt_t18 <-  c(1,    1,        0,    1,      1,      1,        0,            1 * 1)
+(con_old_abv_trt_t6_t0 <- con_old_abv_trt_t6 - con_old_abv_trt_t0)
+(con_old_abv_trt_t18_t0 <- con_old_abv_trt_t18 - con_old_abv_trt_t0)
+con_old_abv_ctl_t0 <-   c(1,    0,        0,    0,      1,      1,        0,            0)
+con_old_abv_ctl_t6 <-   c(1,    0,        1,    0,      1,      1,        0,            0)
+con_old_abv_ctl_t18 <-  c(1,    0,        0,    1,      1,      1,        0,            0)
+(con_old_abv_ctl_t6_t0 <- con_old_abv_ctl_t6 - con_old_abv_ctl_t0)
+(con_old_abv_ctl_t18_t0 <- con_old_abv_ctl_t18 - con_old_abv_ctl_t0)
+## young amputation above ---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  older1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_yng_abv_trt_t0 <-   c(1,    1,        0,    0,      1,      0,        0,            0)
+con_yng_abv_trt_t6 <-   c(1,    1,        1,    0,      1,      0,        1 * 1,        0)
+con_yng_abv_trt_t18 <-  c(1,    1,        0,    1,      1,      0,        0,            1 * 1)
+con_yng_abv_trt_t6_t0 <- con_yng_abv_trt_t6 - con_yng_abv_trt_t0
+con_yng_abv_trt_t18_t0 <- con_yng_abv_trt_t18 - con_yng_abv_trt_t0
+con_yng_abv_ctl_t0 <-   c(1,    0,        0,    0,      1,      0,        0,            0)
+con_yng_abv_ctl_t6 <-   c(1,    0,        1,    0,      1,      0,        0,            0)
+con_yng_abv_ctl_t18 <-  c(1,    0,        0,    1,      1,      0,        0,            0)
+con_yng_abv_ctl_t6_t0 <- con_yng_abv_ctl_t6 - con_yng_abv_ctl_t0
+con_yng_abv_ctl_t18_t0 <- con_yng_abv_ctl_t18 - con_yng_abv_ctl_t0
+## old amputation below ---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  older1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_old_blw_trt_t0 <-   c(1,    1,        0,    0,      0,      1,        0,            0)
+con_old_blw_trt_t6 <-   c(1,    1,        1,    0,      0,      1,        1 * 1,        0)
+con_old_blw_trt_t18 <-  c(1,    1,        0,    1,      0,      1,        0,            1 * 1)
+con_old_blw_trt_t6_t0 <- con_old_blw_trt_t6 - con_old_blw_trt_t0
+con_old_blw_trt_t18_t0 <- con_old_blw_trt_t18 - con_old_blw_trt_t0
+con_old_blw_ctl_t0 <-   c(1,    0,        0,    0,      0,      1,        0,            0)
+con_old_blw_ctl_t6 <-   c(1,    0,        1,    0,      0,      1,        0,            0)
+con_old_blw_ctl_t18 <-  c(1,    0,        0,    1,      0,      1,        0,            0)
+con_old_blw_ctl_t6_t0 <- con_old_blw_ctl_t6 - con_old_blw_ctl_t0
+con_old_blw_ctl_t18_t0 <- con_old_blw_ctl_t18 - con_old_blw_ctl_t0
+## young amputation below ---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  ynger1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_yng_blw_trt_t0 <-   c(1,    1,        0,    0,      0,      0,        0,            0)
+con_yng_blw_trt_t6 <-   c(1,    1,        1,    0,      0,      0,        1 * 1,        0)
+con_yng_blw_trt_t18 <-  c(1,    1,        0,    1,      0,      0,        0,            1 * 1)
+con_yng_blw_trt_t18_t0 <- con_yng_blw_trt_t18 - con_yng_blw_trt_t0
+con_yng_blw_trt_t6_t0 <- con_yng_blw_trt_t6 - con_yng_blw_trt_t0
+con_yng_blw_ctl_t0 <-   c(1,    0,        0,    0,      0,      0,        0,            0)
+con_yng_blw_ctl_t6 <-   c(1,    0,        1,    0,      0,      0,        0,            0)
+con_yng_blw_ctl_t18 <-  c(1,    0,        0,    1,      0,      0,        0,            0)
+con_yng_blw_ctl_t18_t0 <- con_yng_blw_ctl_t18 - con_yng_blw_ctl_t0
+con_yng_blw_ctl_t6_t0 <- con_yng_blw_ctl_t6 - con_yng_blw_ctl_t0
+
+# contast_old_abv_t06 <- cbind(con_old_abv_trt_t6_t0, con_old_abv_ctl_t6_t0)
+# contast_yng_abv_t06 <- cbind(con_yng_abv_trt_t6_t0, con_yng_abv_ctl_t6_t0)
+# contast_old_blw_t06 <- cbind(con_old_blw_trt_t6_t0, con_old_blw_ctl_t6_t0)
+# contast_yng_blw_t06 <- cbind(con_yng_blw_trt_t6_t0, con_yng_blw_ctl_t6_t0)
+
+contrast1 <- cbind(con_old_abv_trt_t6_t0,
+                   con_yng_abv_trt_t6_t0,
+                   con_old_blw_trt_t6_t0,
+                   con_yng_blw_trt_t6_t0,
+                   con_old_abv_ctl_t6_t0,
+                   con_yng_abv_ctl_t6_t0,
+                   con_old_blw_ctl_t6_t0,
+                   con_yng_blw_ctl_t6_t0)
+rownames(contrast1) <- rownames(vcov_2_2)
+
+
+
+con_ctl_t0 <- cbind(con_old_abv_trt_t0,
+                    con_yng_abv_trt_t0,
+                    con_old_blw_trt_t0,
+                    con_yng_blw_trt_t0,
+                    con_old_abv_ctl_t0,
+                    con_yng_abv_ctl_t0,
+                    con_old_blw_ctl_t0,
+                    con_yng_blw_ctl_t0)
+
+con_ctl_t6 <- cbind(con_old_abv_trt_t6,
+                    con_yng_abv_trt_t6,
+                    con_old_blw_trt_t6,
+                    con_yng_blw_trt_t6,
+                    con_old_abv_trt_t6,
+                    con_yng_abv_trt_t6,
+                    con_old_blw_trt_t6,
+                    con_yng_blw_trt_t6)
+
+mu_ctl_t0 <- t(con_ctl_t0) %*% beta_2_2 %>%
+  exp() %>%
+  as.data.frame() %>%
+  dplyr::select("t0" = 1)
+sd_ctl_t0 <- t(con_ctl_t0) %*% vcov_2_2 %*% con_ctl_t0 %>%
+  diag() %>% sqrt()
+mu_ctl_t6 <- t(con_ctl_t6) %*% beta_2_2 %>%
+  exp() %>%
+  as.data.frame() %>%
+  dplyr::select("t6" = 1)
+sd_ctl_t6 <- t(con_ctl_t6) %*% vcov_2_2 %*% con_ctl_t6 %>%
+  diag() %>% sqrt()
+
+
+mu_2_2 <- t(contrast1) %*% beta_2_2 %>%
+  as.data.frame() %>%
+  dplyr::select("log_rate" = 1) %>%
+  mutate(rate = exp(log_rate)) 
+## contrast variance covariance matrix
+sd_2_2 <- t(contrast1) %*% vcov_2_2 %*% contrast1 %>%
+  diag() %>% sqrt()
+
+result2 <- cbind(mu_2_2,
+                 sd_log_rate = sd_2_2,
+                 mu_ctl_t0,
+                 mu_ctl_t6) %>% 
+  mutate(diff_t6_t0 = (rate - 1) * t0,
+         sd_t6_t0 = abs(rate * sd_2_2 * t0)) %>%
+  round(3) 
+result2
+
+
+result3a <- result2[1:4, ]
+result3b <- result2[5:8, ]
+
+result4 <- data.frame(diff_trt_ctl = result3a$diff_t6_t0 - result3b$diff_t6_t0,
+                      sd_trt_ctl = sqrt(result3a$sd_t6_t0^2 + result3b$sd_t6_t0^2)) %>%
+  mutate(q05 = qnorm(0.05, mean = diff_trt_ctl, sd = sd_trt_ctl)) %>%
+  round(3)
+
+result4
+
+
+plot_lla <- data_lla %>%
+  mutate(older = case_when(older == 0 ~ "Young",
+                           older == 1 ~ "Old"),
+         amp.above = case_when(amp.above == 1 ~ "Above",
+                               amp.above == 0 ~ "Below")) %>%
+  ggplot(aes(x = time, 
+             y = stepc,
+             group = id,
+             color = treat)) +
+  geom_line() +
+  facet_wrap(older ~ amp.above)
+
+plot_lla_log <- data_lla %>%
+  mutate(older = case_when(older == 0 ~ "Young",
+                           older == 1 ~ "Old"),
+         amp.above = case_when(amp.above == 1 ~ "Above",
+                               amp.above == 0 ~ "Below")) %>%
+  ggplot(aes(x = time, 
+             y = log(stepc),
+             group = id,
+             color = treat)) +
+  geom_line() +
+  facet_wrap(older ~ amp.above)
+
+plot_lla + theme_bw()
+plot_lla_log + theme_bw()
+
+
+plot_lla2 <- data_lla %>%
+  mutate(older = case_when(older == 0 ~ "Young",
+                           older == 1 ~ "Old"),
+         amp.above = case_when(amp.above == 1 ~ "Above",
+                               amp.above == 0 ~ "Below")) %>% 
+  pivot_wider(names_from = time, 
+              names_prefix = "t", 
+              values_from = stepc) %>%
+  mutate(diff = t6 - t0) %>% 
+  ggplot(aes(y = diff, 
+             x = treat,
+             color = treat)) +
+  geom_boxplot() +
+  facet_wrap(older ~ amp.above)
+
+plot_lla2 + theme_bw()
+
+
+## lmm contrast---------------------------------------------------------------------------
+##                      [0]    [1]       [2]   [3]     [4]     [5]       [6]           [7]
+## coefs               (Int)  treatEXP  time6 time18  older1  amp.abv1  trtEXP:time6  trtEXP:time18
+con_trt_t0 <-   c(1,    1,        0,    0,      1,      1,        0,            0)
+con_trt_t6 <-   c(1,    1,        1,    0,      1,      1,        1 * 1,        0)
+con_trt_t18 <-  c(1,    1,        0,    1,      1,      1,        0,            1 * 1)
+
+con_trt_t6_t0 <- con_trt_t6 - con_trt_t0
+con_trt_t18_t0 <- con_trt_t18 - con_trt_t0
+contrast4 <- con_trt_t18_t0 - con_trt_t6_t0
+contrast4
+
+mu_b <- t(contrast4) %*% beta_2_1 
+mu_b
+## contrast variance covariance matrix
+cov_b <- t(contrast4) %*% vcov_2_1 %*% contrast4 %>% as.matrix()
+
+
+## with both point estimates and standard deviation 
+## an anova or pairwise comparison can be performed
+W0 <- mu_b^2 * solve(cov_b)
+pchisq(W0, df = 1, lower.tail = FALSE)
+
+
+contrast5 <- con_old_abv_trt_t18_t0 - con_old_abv_trt_t6_t0
+contrast5
+
+mu_b2 <- t(contrast5) %*% beta_2_2 
+exp(mu_b2)
+## contrast variance covariance matrix
+cov_b2 <- t(contrast5) %*% vcov_2_2 %*% contrast5 %>% as.numeric()
+
+W1 <- mu_b2^2 / cov_b2
+pchisq(W1, df = 1, lower.tail = FALSE)
